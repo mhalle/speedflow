@@ -147,7 +147,7 @@ def build_view(dbname: str):
     db = sqlite_utils.Database(dbname)
     try:
         db['flow_fts'].drop()
-    except sqlite3.OperationalError:
+    except:
         pass
 
     db.create_view('flow', '''
