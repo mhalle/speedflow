@@ -5,11 +5,16 @@
                 "flow": {
                 "fts_table": "flow_fts"
                 },
+                "flow_": {
+                    "hidden": true
+                },
                 "intersections": {
-                    "label_column": "label"
+                    "label_column": "label",
+                    "hidden": true
                 },
                 "routes": {
-                    "label_column": "label"
+                    "label_column": "label",
+                    "hidden": true
                 }
             }
         }
