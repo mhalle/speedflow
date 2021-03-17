@@ -15,6 +15,9 @@
                 "routes": {
                     "label_column": "label",
                     "hidden": true
+                },
+                "datetimes": {
+                    "hidden": true
                 }
             }
         }
