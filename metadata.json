@@ -1,0 +1,17 @@
+{
+    "databases": {
+        "newton": {
+            "tables": {
+                "flow": {
+                "fts_table": "flow_fts"
+                },
+                "intersections": {
+                    "label_column": "label"
+                },
+                "routes": {
+                    "label_column": "label"
+                }
+            }
+        }
+    }
+}
