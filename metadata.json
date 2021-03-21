@@ -3,7 +3,9 @@
         "newton": {
             "tables": {
                 "flow": {
-                "fts_table": "flow_fts"
+                    "fts_table": "flow_fts",
+                    "size": 200
+
                 },
                 "flow_": {
                     "hidden": true
