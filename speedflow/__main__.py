@@ -135,6 +135,10 @@ def db_insert(dbname, h, round_to_minutes):
             }, pk=None, foreign_keys=[['route', 'routes', 'li'], 
                                       ['intersection', 'intersections', 'id'],
                                       ['datetime', 'datetimes', 'id']])
+
+    
+    if 'flow_fts' in db.table_names(fts5=True):
+        db['flow_fts'].rebuild_fts()
                                       
 
 @app.command()
@@ -188,12 +192,7 @@ def build_fts(dbname: str):
         select rowid, date, time, route, intersection from flow;
         ''')
 
-    db.executescript('''
-        create trigger if not exists flow__fts_ai after insert on flow_ begin
-            insert into flow_fts(rowid, date, time, route, intersection) 
-            select rowid, date, time, route, intersection from flow;
-        end;
-        ''')
+
 
 @app.command()
 def create_indices(dbname: str):
