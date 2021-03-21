@@ -153,10 +153,12 @@ def build_view(dbname: str):
     db.create_view('flow', '''
         select
             flow_.rowid as rowid,
+            datetimes.date || "T" || datetimes.time as datetime,
             datetimes.date as date,
             datetimes.time as time,
             routes.label as route,
             intersections.label as intersection,
+            intersections.id as intersectionID,
             intersections.direction as direction,
             speed,
             freeFlow,
@@ -167,6 +169,13 @@ def build_view(dbname: str):
                 join intersections on flow_.intersection = intersections.id
                 join datetimes on flow_.datetime = datetimes.id
         ''', replace=True)
+
+@app.command()
+def build_fts(dbname: str):
+    try:
+        db['flow_fts'].drop()
+    except:
+        pass
 
     db.executescript('''
         create virtual table flow_fts using FTS5 (
@@ -188,11 +197,6 @@ def build_view(dbname: str):
             select rowid, date, time, route, intersection from flow;
         end;
         ''')
-
-@app.command()
-def rebuild_fts(dbname: str):
-    db = sqlite_utils.Database(dbname)
-    db['flow_fts']
 
 @app.command()
 def create_indices(dbname: str):
