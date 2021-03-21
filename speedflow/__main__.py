@@ -154,7 +154,7 @@ def build_view(dbname: str):
             datetimes.time as time,
             routes.label as route,
             intersections.label as intersection,
-            intersections.id as intersectionID,
+            intersections.pc as intersectionCode,
             intersections.direction as direction,
             speed,
             freeFlow,
