@@ -20,8 +20,9 @@ def get_here_url(api_key, bbox):
 class TMC:
     label: str
     dir: str
+    qd: str
     len: str
-    PC: str
+    pc: str
 
 
 @dataclass
@@ -36,7 +37,7 @@ class FI:
 @dataclass
 class SegmentLocation:
     mid: str
-    LI: str
+    li: str
     label: str
 
 @dataclass
@@ -66,9 +67,10 @@ def parseFI(fi):
 def parseTMC(tmc):
     return TMC(
         label=tmc['DE'],
-        dir=tmc['QD'],
+        qd=tmc['QD'],
+        dir='+' if tmc['QD'] == '-' else '-',   # swap QD (queue direction) for direction
         len=tmc['LE'],
-        PC=tmc['PC']
+        pc=tmc['PC']
     )
 
 class HereFlowInfo:
@@ -100,7 +102,7 @@ def db_insert(dbname, h, round_to_minutes):
         routepk = db['routes'].upsert({
                         'label': r.rid.label,
                         'mid': r.rid.mid,
-                        'li': r.rid.LI
+                        'li': r.rid.li
                         }, pk='li').last_pk
 
         date, time = utc_to_local_date_time(r.time, round_to_minutes)
@@ -112,15 +114,14 @@ def db_insert(dbname, h, round_to_minutes):
         })
 
         for i in r.intersections:
-            unique = f'{r.time}_{r.rid.LI}_{i.tmc.PC}_{i.tmc.dir}'
-            unique_int = f'{i.tmc.dir}{i.tmc.PC}'
+            unique_int = f'{i.tmc.qd}{i.tmc.pc}'
             intpk = db['intersections'].upsert({
                     'id': unique_int,
                     'label': i.tmc.label,
                     'route': routepk,
                     'direction': i.tmc.dir,
                     'length': i.tmc.len,
-                    'pc': i.tmc.PC
+                    'pc': i.tmc.pc
             }, pk='id', foreign_keys=[['route', 'routes', 'li']]).last_pk
 
             db['flow_'].insert({
@@ -158,7 +159,7 @@ def build_view(dbname: str):
             datetimes.time as time,
             routes.label as route,
             intersections.label as intersection,
-            intersections.pc as intersectionCode,
+            intersections.pc as icode,
             intersections.direction as direction,
             speed,
             freeFlow,
@@ -192,6 +193,13 @@ def build_fts(dbname: str):
         select rowid, date, time, route, intersection from flow;
         ''')
 
+@app.command()
+def fixup_direction(dbname: str):
+    db = sqlite_utils.Database(dbname)
+    table = db['intersections']
+    for row in table.rows:
+        row['direction'] = '+' if row['direction'] == '-' else '-'
+        table.upsert(row, pk='id', alter=True)
 
 
 @app.command()
