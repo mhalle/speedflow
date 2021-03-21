@@ -4,9 +4,7 @@
             "tables": {
                 "flow": {
                     "fts_table": "flow_fts",
-                    "size": 250,
-                    "facets": ["datetime", "date", "time", "route", "intersection", "intersectionCode", "direction"]
-
+                    "size": 250
                 },
                 "flow_": {
                     "hidden": true
