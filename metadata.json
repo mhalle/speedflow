@@ -4,7 +4,7 @@
             "tables": {
                 "flow": {
                     "fts_table": "flow_fts",
-                    "size": 200
+                    "size": 250
 
                 },
                 "flow_": {
