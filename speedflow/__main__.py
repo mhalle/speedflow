@@ -139,7 +139,7 @@ def db_insert(dbname, h, round_to_minutes):
 
     
     if 'flow_fts' in db.table_names(fts5=True):
-        db['flow_fts'].rebuild_fts()
+        db.executescript("insert into flow_fts(flow_fts) values('rebuild');")
                                       
 
 @app.command()
@@ -192,6 +192,12 @@ def build_fts(dbname: str):
         insert into flow_fts(rowid, date, time, route, intersection)
         select rowid, date, time, route, intersection from flow;
         ''')
+
+@app.command()
+def rebuild_fts(dbname: str):
+    db = sqlite_utils.Database(dbname)
+    if 'flow_fts' in db.table_names(fts5=True):
+        db.executescript("insert into flow_fts(flow_fts) values('rebuild');")    
 
 @app.command()
 def fixup_direction(dbname: str):
