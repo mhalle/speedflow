@@ -139,7 +139,7 @@ def db_insert(dbname, h, round_to_minutes):
         db.executescript("insert into flow_fts(flow_fts) values('rebuild');")
                                       
     build_directions_table(dbname)
-    
+
 @app.command()
 def log_current_flow(dbname: str, api_key: str, bbox: str, round: int):
     h = get_here_flow_info(api_key, bbox)
@@ -158,6 +158,7 @@ def build_view(dbname: str):
             routes.label as route,
             route_directions.towardLabel as toward,
             intersections.label as intersection,
+            intersections.pc as icode,
             speed,
             freeFlow,
             jamFactor,
