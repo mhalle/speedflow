@@ -46,9 +46,6 @@ class RW:
     time: str
     intersections: List[FI]
 
-
-
-
 def parseRW(rw):
     return RW(
             rid=SegmentLocation(rw['mid'], rw['LI'], rw['DE']), 
@@ -141,7 +138,8 @@ def db_insert(dbname, h, round_to_minutes):
     if 'flow_fts' in db.table_names(fts5=True):
         db.executescript("insert into flow_fts(flow_fts) values('rebuild');")
                                       
-
+    build_directions_table(dbname)
+    
 @app.command()
 def log_current_flow(dbname: str, api_key: str, bbox: str, round: int):
     h = get_here_flow_info(api_key, bbox)
@@ -158,9 +156,8 @@ def build_view(dbname: str):
             datetimes.date as date,
             datetimes.time as time,
             routes.label as route,
+            route_directions.towardLabel as toward,
             intersections.label as intersection,
-            intersections.pc as icode,
-            intersections.direction as direction,
             speed,
             freeFlow,
             jamFactor,
@@ -169,6 +166,7 @@ def build_view(dbname: str):
                 join routes on flow_.route = routes.li
                 join intersections on flow_.intersection = intersections.id
                 join datetimes on flow_.datetime = datetimes.id
+                join route_directions on routes.li = route_directions.route
         ''', replace=True)
 
 @app.command()
@@ -235,6 +233,40 @@ def utc_to_local_date_time(utcstr, round_to_minutes):
     local = utc.astimezone(dateutil.tz.gettz('America/New_York'))
     rounded = round_time(local, round_to_minutes)
     return [rounded.date().isoformat(), rounded.strftime('%H:%M')]
+
+swapd = {'+': '-', '-': '+'}
+
+@app.command()
+def build_directions_table(dbname: str):
+    db = sqlite_utils.Database(dbname)
+    intersections = {r['id']: r for r in db['intersections'].rows}
+    qr = db.execute('''
+        select route, direction, min(pc), max(pc)
+            from intersections group by route''').fetchall()
+
+    d = []
+    for route, dir, mini, maxi in qr:
+        away_from = mini if dir == '+' else maxi
+        toward = maxi if dir == '+' else mini
+
+        away_from_id = f'{swapd[dir]}{away_from}'
+        toward_id = f'{swapd[dir]}{toward}'
+        d.append({
+            'route': route,
+            'direction': dir,
+            'awayFrom': away_from_id,
+            'awayFromLabel': intersections[away_from_id]['label'],
+            'toward': toward_id,
+            'towardLabel': intersections[toward_id]['label']
+        })
+
+    db['route_directions'].insert_all(d, 
+        truncate=True,
+        foreign_keys = [['route', 'routes', 'li'],
+                        ['awayFrom', 'intersections', 'id'],
+                        ['toward', 'intersections', 'id']],
+        pk='route')
+    db.index_foreign_keys()
 
 
 if __name__ == '__main__':

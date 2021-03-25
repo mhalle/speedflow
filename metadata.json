@@ -7,18 +7,18 @@
                     "size": 250
                 },
                 "flow_": {
-                    "hidden": true
+                    "hidden": false
                 },
                 "intersections": {
                     "label_column": "label",
-                    "hidden": true
+                    "hidden": false
                 },
                 "routes": {
                     "label_column": "label",
-                    "hidden": true
+                    "hidden": false
                 },
                 "datetimes": {
-                    "hidden": true
+                    "hidden": false
                 }
             }
         }
