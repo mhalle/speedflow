@@ -1,12 +1,13 @@
 import json
 import sys
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple, Dict
 import typer
 import sqlite3
 import dateutil.tz
 import datetime
 import sqlite_utils
+import json
 
 
 app = typer.Typer()
@@ -14,7 +15,7 @@ app = typer.Typer()
 BBOX = '42.367222,-71.273417;42.281275,-71.151347'
 
 def get_here_url(api_key, bbox):
-    return f'https://traffic.ls.hereapi.com/traffic/6.3/flow.json?apiKey={api_key}&bbox={bbox}'
+    return f'https://traffic.ls.hereapi.com/traffic/6.3/flow.json?apiKey={api_key}&bbox={bbox}&responseattributes=sh,fc'
 
 @dataclass
 class TMC:
@@ -24,10 +25,21 @@ class TMC:
     len: str
     pc: str
 
+@dataclass
+class SHP:
+    value: List[List[float]]
+    fc: int
+
+    def linestring(self) -> str:
+        return json.dumps({
+            'type': 'LineString',
+            'coordinates': self.value
+        })
 
 @dataclass
 class FI:
     tmc: TMC
+    shape: SHP
     speed: float
     capped: float
     freeFlow: float
@@ -46,6 +58,21 @@ class RW:
     time: str
     intersections: List[FI]
 
+
+def parseSHP(shp):
+    fc = None
+    values = {}  # rely in ordering
+    for ss in shp:
+        value = ss['value']
+        thisfc = ss['FC']
+        if not fc or thisfc != fc:
+            fc = thisfc
+        for v in value:
+            for x in (tuple(x.split(',')) for x in v.strip().split()):
+                values[x] = None
+    return SHP(value=[[float(x[0]), float(x[1])] for x in values.keys()], fc=int(fc))
+
+
 def parseRW(rw):
     return RW(
             rid=SegmentLocation(rw['mid'], rw['LI'], rw['DE']), 
@@ -55,7 +82,8 @@ def parseRW(rw):
 def parseFI(fi):
     return FI(
         tmc=parseTMC(fi['TMC']),
-        speed=fi['CF'][0]['SU'],
+        shape=parseSHP(fi['SHP']),
+        speed=fi['CF'][0]['SU'] if 'SU' in fi['CF'][0] else fi['CF'][0]['SP'],
         capped=fi['CF'][0]['SP'],
         freeFlow=fi['CF'][0]['FF'],
         jamFactor=fi['CF'][0]['JF'],
@@ -118,8 +146,10 @@ def db_insert(dbname, h, round_to_minutes):
                     'route': routepk,
                     'direction': i.tmc.dir,
                     'length': i.tmc.len,
-                    'pc': i.tmc.pc
-            }, pk='id', foreign_keys=[['route', 'routes', 'li']]).last_pk
+                    'pc': i.tmc.pc,
+                    'fc': i.shape.fc,
+                    'shape': i.shape.linestring()
+            }, pk='id', foreign_keys=[['route', 'routes', 'li']], alter=True).last_pk
 
             db['flow_'].insert({
                 'datetime': timeid,
@@ -268,6 +298,12 @@ def build_directions_table(dbname: str):
                         ['toward', 'intersections', 'id']],
         pk='route')
     db.index_foreign_keys()
+
+
+@app.command()
+def print_here_flow(api_key: str, bbox: str):
+    h = get_here_flow_info(api_key, bbox)
+    print(h.roadways[0])
 
 
 if __name__ == '__main__':
