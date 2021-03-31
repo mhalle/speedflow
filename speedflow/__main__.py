@@ -33,7 +33,7 @@ class SHP:
     def linestring(self) -> str:
         return json.dumps({
             'type': 'LineString',
-            'coordinates': self.value
+            'coordinates': [[x[1], x[0]] for x in self.value] # swap
         })
 
 @dataclass
