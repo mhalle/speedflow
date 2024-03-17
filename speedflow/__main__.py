@@ -8,14 +8,14 @@ import dateutil.tz
 import datetime
 import sqlite_utils
 import json
+import shapely.geometry
 
 
 app = typer.Typer()
 
-BBOX = '42.367222,-71.273417;42.281275,-71.151347'
-
 def get_here_url(api_key, bbox):
-    return f'https://traffic.ls.hereapi.com/traffic/6.3/flow.json?apiKey={api_key}&bbox={bbox}&responseattributes=sh,fc'
+    bbox_str = f'{bbox[3]},{bbox[2]};{bbox[1]},{bbox[0]}'
+    return f'https://traffic.ls.hereapi.com/traffic/6.3/flow.json?apiKey={api_key}&bbox={bbox_str}&responseattributes=sh,fc'
 
 @dataclass
 class TMC:
@@ -112,10 +112,17 @@ class HereFlowInfo:
         }
         self.roadways = [parseRW(x) for x in rws['RW']]
 
+def get_location_info(db):
+    el = list(db['location'].rows)[0]
+    el['bounding_box'] = json.loads(el['bounding_box'])
+    el['shape'] = shapely.geometry.shape(json.loads(el['shape'])['features'][0]['geometry'])
+    return el
+
 
 def get_here_flow_info(api_key, bbox):
     import urllib.request
     here_url = get_here_url(api_key, bbox)
+    print(here_url)
     data = urllib.request.urlopen(here_url)
 
     h = HereFlowInfo(json.load(data))
@@ -123,7 +130,15 @@ def get_here_flow_info(api_key, bbox):
 
 def db_insert(dbname, h, round_to_minutes):
     db = sqlite_utils.Database(dbname)
+    location_info = get_location_info(db)
+
     for r in h.roadways:
+
+        # exclude routes as specified by location info
+        if (r.rid.label in location_info['excluded_routes'] or 
+            r.rid.li in location_info['excluded_routes']):
+            continue
+
         routepk = db['routes'].upsert({
                         'label': r.rid.label,
                         'mid': r.rid.mid,
@@ -138,7 +153,13 @@ def db_insert(dbname, h, round_to_minutes):
             'time': time,
         })
 
+
         for i in r.intersections:
+            # if this intersection falls outside of the location shape, drop it
+            ishape = shapely.geometry.shape(json.loads(i.shape.linestring()))
+            if not location_info['shape'].intersects(ishape):
+                continue
+
             unique_int = f'{i.tmc.qd}{i.tmc.pc}'
             intpk = db['intersections'].upsert({
                     'id': unique_int,
@@ -168,12 +189,42 @@ def db_insert(dbname, h, round_to_minutes):
     if 'flow_fts' in db.table_names(fts5=True):
         db.executescript("insert into flow_fts(flow_fts) values('rebuild');")
                                       
-    build_directions_table(dbname)
+
+def add_location(dbname, location_file):
+    with open(location_file) as fp:
+        location_info = json.load(fp)
+
+    d = {}
+    for field in ('shape', 'label', 'bounding_box', 'excluded_routes'):
+        if field in location_info:
+            d[field] = location_info[field]
+
+    # compute bounding box if it doesn't exist:
+    if 'bounding_box' not in d:
+        shape = shapely.geometry.shape(location_info['shape']['features'][0]['geometry'])
+        d['bounding_box'] = shape.bounds
+
+    location_table = sqlite_utils.Database(dbname)['location']
+    location_table.drop(ignore=True)
+    location_table.insert(d)
+
 
 @app.command()
-def log_current_flow(dbname: str, api_key: str, bbox: str, round: int):
+def init(dbname: str, location: str):
+    """setup database"""
+    add_location(dbname, location)
+    build_view(dbname)
+
+@app.command()
+def log_current_flow(dbname: str, api_key: str, round: int):
+    location_info = get_location_info(sqlite_utils.Database(dbname))
+    bbox = location_info['bounding_box']
+
     h = get_here_flow_info(api_key, bbox)
     db_insert(dbname, h, round)
+    create_indices(dbname)
+    build_directions_table(dbname)
+
 
 @app.command()
 def build_view(dbname: str):
