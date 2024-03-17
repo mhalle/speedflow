@@ -122,7 +122,6 @@ def get_location_info(db):
 def get_here_flow_info(api_key, bbox):
     import urllib.request
     here_url = get_here_url(api_key, bbox)
-    print(here_url)
     data = urllib.request.urlopen(here_url)
 
     h = HereFlowInfo(json.load(data))
