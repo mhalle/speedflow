@@ -5,7 +5,8 @@
         "",
         "I-90", 
         "I-95", 
-        "RT-9"
+        "RT-9",
+        "Nonantum Rd"
     ],
     "shape": {
         "type": "FeatureCollection",
