@@ -5,16 +5,7 @@
         "",
         "I-90", 
         "I-95", 
-        "RT-9", 
-        "US-20", 
-        "Highland Ave", 
-        "VFW Pky", 
-        "Leo M Birmingham Pky", 
-        "Beech St", 
-        "RT-30", 
-        "Soldiers Field Rd", 
-        "W Roxbury Pky", 
-        "Great Plain Ave"
+        "RT-9"
     ],
     "shape": {
         "type": "FeatureCollection",
