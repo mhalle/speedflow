@@ -237,7 +237,7 @@ def build_view(dbname: str):
             datetimes.time as time,
             strftime('%w', datetimes.date) as day,
             routes.label as route,
-            routes.id as rid,
+            routes.li as rid,
             route_directions.towardLabel as toward,
             intersections.label as intersection,
             intersections.id as iid,
