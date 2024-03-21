@@ -242,6 +242,7 @@ def build_view(dbname: str):
             intersections.label as intersection,
             intersections.id as iid,
             intersections.pc as icode,
+            intersections.direction as idir,
             speed,
             freeFlow,
             jamFactor,
